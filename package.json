@@ -1,6 +1,6 @@
 {
   "name": "pi-leo-bridge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bring Pi-configured models and authentication into Brave Leo",
   "type": "module",
   "license": "MIT",

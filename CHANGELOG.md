@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-03
+
+### Added
+
+- Theme-aware light and dark screenshots showing Pi answering with current-page context in Brave Leo.
+
 ## [0.1.1] - 2026-09-03
 
 ### Changed
@@ -22,6 +28,7 @@ All notable changes to this project will be documented here. The format is based
 - `pi-leo` install, uninstall, status, restart, doctor, model-listing, default-selection, log, and smoke-test commands.
 - Request cancellation, concurrency and body-size limits, output filtering, and redacted metadata-only logs.
 
-[Unreleased]: https://github.com/omaclaren/pi-leo-bridge/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/omaclaren/pi-leo-bridge/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/omaclaren/pi-leo-bridge/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/omaclaren/pi-leo-bridge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/omaclaren/pi-leo-bridge/releases/tag/v0.1.0

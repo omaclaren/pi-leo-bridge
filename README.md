@@ -8,6 +8,12 @@ Brave Leo -> authenticated local bridge -> isolated Pi SDK session -> selected p
 
 The bridge runs locally on macOS and starts automatically with `launchd`. It supports streaming conversations, page context, images, titles, and rewrites through Leo's BYOM interface.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/omaclaren/pi-leo-bridge/v0.1.2/.github/assets/pi-leo-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/omaclaren/pi-leo-bridge/v0.1.2/.github/assets/pi-leo-light.webp">
+  <img alt="Brave Leo summarising a Wikipedia page with Pi — GPT-5.6 Sol (Medium)" src="https://raw.githubusercontent.com/omaclaren/pi-leo-bridge/v0.1.2/.github/assets/pi-leo-light.webp">
+</picture>
+
 ## Features
 
 - Uses Pi's model catalogue and existing provider authentication.
