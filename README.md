@@ -1,22 +1,20 @@
 # Pi Leo Bridge
 
-> Unofficial companion project; not affiliated with Brave Software, OpenAI, or the Pi maintainers.
-
-Pi Leo Bridge lets [Brave Leo BYOM](https://support.brave.app/hc/en-us/articles/34070140231821-How-do-I-use-the-Bring-Your-Own-Model-BYOM-with-Brave-Leo) use models and authentication configured in the [Pi coding agent](https://github.com/earendil-works/pi).
+**Pi Leo Bridge brings [Pi](https://github.com/earendil-works/pi) into [Brave Leo](https://support.brave.app/hc/en-us/articles/34070140231821-How-do-I-use-the-Bring-Your-Own-Model-BYOM-with-Brave-Leo).** It adds a Pi-configured model to Leo's model picker and uses Pi's existing provider authentication. Each request runs in a fresh, isolated Pi SDK session.
 
 ```text
-Brave Leo -> authenticated 127.0.0.1 endpoint -> isolated Pi SDK session -> selected provider/model
+Brave Leo -> authenticated local bridge -> isolated Pi SDK session -> selected provider/model
 ```
 
-The initial release supports macOS, starts automatically with `launchd`, and keeps tools disabled. It is a standalone Pi companion CLI rather than an extension loaded into interactive Pi sessions.
+The bridge runs locally on macOS and starts automatically with `launchd`. It supports streaming conversations, page context, images, titles, and rewrites through Leo's BYOM interface.
 
 ## Features
 
-- Uses Pi providers, model discovery, and existing authentication, including `openai-codex` subscription authentication.
+- Uses Pi's model catalogue and existing provider authentication.
 - Adds separate Leo picker entries for configurable Pi thinking levels.
-- Implements the OpenAI Chat Completions subset used by Leo, including streaming, history, embedded images, titles, rewrites, assistant prefixes, and stop sequences.
+- Supports Leo's BYOM chat flow, including streaming, history, embedded images, titles, rewrites, assistant prefixes, and stop sequences.
 - Binds only to IPv4 loopback and authenticates a random capability URL.
-- Gives every request a fresh in-memory Pi session with no tools, extensions, skills, user prompt files, project instructions, or persisted transcript.
+- Runs every request in a fresh in-memory Pi session with a minimal, conversation-only runtime.
 - Makes and verifies a timestamped backup before every Brave Preferences change.
 - Installs an automatic per-user macOS LaunchAgent.
 
@@ -30,7 +28,7 @@ The initial release supports macOS, starts automatically with `launchd`, and kee
 
 ## Installation
 
-After the npm release is published:
+Install from npm:
 
 ```bash
 npm install --global pi-leo-bridge
@@ -170,13 +168,13 @@ The capability URL is stored in the selected Brave profile's Preferences file. T
 
 Only the Brave-to-bridge hop is local. Pi then sends the supplied conversation, page context, and images to the configured model provider. Provider retention policies, subscription limits, and charges apply. Brave's hosted-model proxy protections do not apply to BYOM.
 
-## Scope and limitations
+## Scope
 
-The bridge can answer from text and images explicitly sent by Leo. It cannot inspect an unshared tab, click, type, navigate, access files, run commands, or communicate with other Pi sessions.
+The initial release focuses on conversation. Leo sends text, page context, and images; the bridge returns responses from the selected Pi model.
 
-Those restrictions are intentional. Direct browser control or session-to-session communication should use separate, narrowly scoped profiles with explicit user approval, so prompt injection in attached pages cannot silently trigger actions.
+### Protocol compatibility
 
-Brave currently sends some OpenAI-compatible models a hard-coded sampling value. The bridge intentionally ignores sampling fields because Pi controls generation through the selected model and thinking level.
+Leo sends BYOM requests through an OpenAI-compatible Chat Completions interface. The bridge implements the fields Leo uses and translates them into Pi SDK calls. It ignores Brave's sampling field because Pi controls generation through the selected model and thinking level.
 
 ## Development
 
@@ -193,3 +191,5 @@ Runtime dependencies on Pi are exact-pinned so SDK drift is caught before releas
 ## License
 
 [MIT](LICENSE)
+
+Pi Leo Bridge is an independent companion project maintained separately from Brave Software, OpenAI, and the Pi project.

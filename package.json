@@ -1,7 +1,7 @@
 {
   "name": "pi-leo-bridge",
-  "version": "0.1.0",
-  "description": "Secure localhost bridge from Brave Leo BYOM to isolated Pi SDK sessions",
+  "version": "0.1.1",
+  "description": "Bring Pi-configured models and authentication into Brave Leo",
   "type": "module",
   "license": "MIT",
   "keywords": [
