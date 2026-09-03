@@ -1,0 +1,63 @@
+{
+  "name": "pi-leo-bridge",
+  "version": "0.1.0",
+  "description": "Secure localhost bridge from Brave Leo BYOM to isolated Pi SDK sessions",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-coding-agent",
+    "brave",
+    "brave-leo",
+    "byom",
+    "openai-compatible",
+    "macos"
+  ],
+  "homepage": "https://github.com/omaclaren/pi-leo-bridge#readme",
+  "bugs": {
+    "url": "https://github.com/omaclaren/pi-leo-bridge/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omaclaren/pi-leo-bridge.git"
+  },
+  "os": [
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "pi-leo": "./bin/pi-leo",
+    "pi-leo-bridge": "./bin/pi-leo"
+  },
+  "files": [
+    "dist/src",
+    "bin",
+    "scripts/*.sh",
+    "scripts/*.py",
+    "docs",
+    "README.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:scripts": "bash -n scripts/install.sh scripts/uninstall.sh bin/pi-leo && python3 -c \"from pathlib import Path; [compile(path.read_text(), str(path), 'exec') for path in map(Path, ['scripts/configure-install.py','scripts/remove-brave-models.py','scripts/set-brave-default.py','scripts/doctor.py'])]\"",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "check": "npm run typecheck && npm run test && npm run check:scripts",
+    "prepack": "npm run clean && npm run check"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.84.4",
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,229 @@
+#!/bin/bash
+set -euo pipefail
+
+SELF="$(node -e 'console.log(require("node:fs").realpathSync(process.argv[1]))' "$0")"
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
+LABEL="com.ojm.pi-leo-bridge"
+DOMAIN="gui/${UID}/${LABEL}"
+CONFIG="${HOME}/.config/pi-leo-bridge/config.json"
+OUT_LOG="${HOME}/Library/Logs/pi-leo-bridge.log"
+ERR_LOG="${HOME}/Library/Logs/pi-leo-bridge.error.log"
+
+usage() {
+  cat <<'EOF'
+Usage: pi-leo <command> [options]
+
+Setup:
+  install       Configure Brave and install/start the macOS LaunchAgent
+  configure     Re-run installation with new model/profile options
+  uninstall     Remove the service and its managed Brave models
+  models        List models available through configured Pi authentication
+  default LEVEL Set the default for new Leo chats; LEVEL may also be restore
+
+Operation:
+  status        Show LaunchAgent and bridge health
+  restart       Restart the bridge and wait for health
+  doctor        Verify installation, security settings, and Brave configuration
+  logs [LINES]  Follow service logs (default initial lines: 100)
+  smoke-test [PROFILE]
+                Make one real request; PROFILE is a level or public model id
+  version       Show package version
+  help          Show this help
+
+Run `pi-leo install --help` for installation options.
+EOF
+}
+
+require_config() {
+  if [[ ! -f "$CONFIG" ]]; then
+    echo "Pi Leo bridge is not configured. Run: pi-leo install" >&2
+    exit 1
+  fi
+}
+
+config_value() {
+  python3 - "$CONFIG" "$1" <<'PY'
+import json,sys
+value=json.load(open(sys.argv[1])).get(sys.argv[2],"")
+print(value if isinstance(value,(str,int)) else "")
+PY
+}
+
+health_url() {
+  require_config
+  printf 'http://127.0.0.1:%s/healthz\n' "$(config_value port)"
+}
+
+status() {
+  require_config
+  if launchctl print "$DOMAIN" >/dev/null 2>&1; then
+    echo "LaunchAgent: loaded"
+  else
+    echo "LaunchAgent: not loaded"
+  fi
+
+  if payload="$(curl --fail --silent --max-time 3 "$(health_url)")" \
+    && printf '%s' "$payload" | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p.get("service")=="pi-leo-bridge"' 2>/dev/null; then
+    echo "Bridge: healthy"
+    printf '%s' "$payload" | python3 -m json.tool
+  else
+    echo "Bridge: unavailable"
+    return 1
+  fi
+}
+
+restart() {
+  require_config
+  PLIST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
+  if launchctl print "$DOMAIN" >/dev/null 2>&1; then
+    launchctl kickstart -k "$DOMAIN"
+  elif [[ -f "$PLIST" ]]; then
+    launchctl bootstrap "gui/${UID}" "$PLIST"
+  else
+    echo "LaunchAgent is not installed. Run: pi-leo install" >&2
+    return 1
+  fi
+  URL="$(health_url)"
+  for _ in $(seq 1 60); do
+    if payload="$(curl --fail --silent --max-time 2 "$URL" 2>/dev/null)" \
+      && printf '%s' "$payload" | python3 -c 'import json,sys; p=json.load(sys.stdin); assert p.get("service")=="pi-leo-bridge" and p.get("status")=="ok"' 2>/dev/null; then
+      echo "Bridge restarted and healthy."
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Bridge did not become healthy; run: pi-leo logs" >&2
+  return 1
+}
+
+logs() {
+  local lines="${1:-100}"
+  if [[ ! "$lines" =~ ^[0-9]+$ ]]; then
+    echo "Log line count must be a non-negative integer." >&2
+    return 2
+  fi
+  touch "$OUT_LOG" "$ERR_LOG"
+  echo "Following logs; press Ctrl-C to stop."
+  tail -n "$lines" -F "$OUT_LOG" "$ERR_LOG"
+}
+
+set_default() {
+  require_config
+  local selector="${1:-}"
+  if [[ -z "$selector" ]]; then
+    echo "Usage: pi-leo default {THINKING_LEVEL|restore}" >&2
+    return 2
+  fi
+  local app_name
+  app_name="$(config_value braveApplicationName)"
+  case "$app_name" in
+    "Brave Browser"|"Brave Browser Beta"|"Brave Browser Nightly") ;;
+    *) echo "Unsupported Brave application name: $app_name" >&2; return 1 ;;
+  esac
+
+  local was_running=false
+  local relaunched=false
+  if pgrep -x "$app_name" >/dev/null 2>&1; then
+    was_running=true
+  fi
+  reopen_brave() {
+    if [[ "$was_running" == true && "$relaunched" == false ]]; then
+      open -a "$app_name" >/dev/null 2>&1 || true
+    fi
+  }
+  trap reopen_brave EXIT
+
+  if [[ "$was_running" == true ]]; then
+    echo "Quitting $app_name briefly to update its default model..."
+    for _ in 1 2 3; do
+      osascript -e "tell application \"$app_name\" to quit" >/dev/null 2>&1 || true
+      for _ in $(seq 1 20); do
+        pgrep -x "$app_name" >/dev/null 2>&1 || break
+        sleep 0.5
+      done
+      pgrep -x "$app_name" >/dev/null 2>&1 || break
+    done
+    if pgrep -x "$app_name" >/dev/null 2>&1; then
+      echo "$app_name did not quit; no preferences were changed." >&2
+      return 1
+    fi
+  fi
+
+  python3 "$ROOT/scripts/set-brave-default.py" --config "$CONFIG" "$selector"
+  if [[ "$was_running" == true ]]; then
+    open -a "$app_name"
+    relaunched=true
+  fi
+  trap - EXIT
+}
+
+smoke_test() {
+  require_config
+  python3 - "$CONFIG" "${1:-}" <<'PY'
+import hashlib
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+config=json.loads(Path(sys.argv[1]).read_text())
+selector=sys.argv[2]
+profiles=config.get('profiles',[])
+if selector:
+    profile=next((p for p in profiles if p.get('thinkingLevel')==selector or p.get('publicModelId')==selector),None)
+else:
+    profile=next((p for p in profiles if p.get('publicModelId')==config.get('publicModelId')),None)
+if not profile:
+    choices=', '.join(str(p.get('thinkingLevel')) for p in profiles)
+    raise SystemExit(f"Unknown profile '{selector}'. Available levels: {choices}")
+preferences_path=Path(config.get('bravePreferencesPath',Path.home()/"Library/Application Support/BraveSoftware/Brave-Browser/Default/Preferences"))
+preferences=json.loads(preferences_path.read_text())
+models=preferences.get('brave',{}).get('ai_chat',{}).get('custom_models',[])
+model=next((m for m in models if m.get('model_request_name')==profile.get('publicModelId')),None)
+if not model:
+    raise SystemExit('Selected Pi model is not configured in Brave')
+endpoint=model.get('endpoint_url')
+match=re.fullmatch(r'http://127\.0\.0\.1:\d+/auth/([^/]+)/v1/chat/completions',str(endpoint))
+if not match or hashlib.sha256(match.group(1).encode()).hexdigest()!=config.get('tokenSha256'):
+    raise SystemExit('Pi model endpoint failed capability validation')
+payload={
+    'model':profile['publicModelId'],
+    'messages':[{'role':'user','content':'Reply with exactly: Pi bridge OK'}],
+    'temperature':0.7,
+    'stream':False,
+}
+request=urllib.request.Request(endpoint,data=json.dumps(payload).encode(),headers={'Content-Type':'application/json'})
+try:
+    with urllib.request.urlopen(request,timeout=300) as response:
+        body=json.load(response)
+except urllib.error.HTTPError as error:
+    try: detail=json.load(error).get('error',{}).get('message','request failed')
+    except Exception: detail='request failed'
+    raise SystemExit(f"Bridge smoke test failed (HTTP {error.code}): {detail}")
+except Exception as error:
+    raise SystemExit(f"Bridge smoke test failed: {type(error).__name__}")
+text=body['choices'][0]['message']['content']
+print(text)
+print('profile:',profile['thinkingLevel'])
+print('usage:',body.get('usage',{}))
+PY
+}
+
+case "${1:-status}" in
+  install|configure) shift; exec "$ROOT/scripts/install.sh" "$@" ;;
+  uninstall) shift; exec "$ROOT/scripts/uninstall.sh" "$@" ;;
+  models) shift; exec node "$ROOT/dist/src/list-models.js" "$@" ;;
+  default) set_default "${2:-}" ;;
+  doctor) shift; exec python3 "$ROOT/scripts/doctor.py" "$@" ;;
+  status) status ;;
+  restart) restart ;;
+  logs) logs "${2:-100}" ;;
+  smoke-test|test) smoke_test "${2:-}" ;;
+  version)
+    node -e 'const fs=require("fs"),path=require("path"); console.log(JSON.parse(fs.readFileSync(path.join(process.argv[1],"package.json"),"utf8")).version)' "$ROOT"
+    ;;
+  help|-h|--help) usage ;;
+  *) echo "Unknown command: $1" >&2; usage >&2; exit 2 ;;
+esac
