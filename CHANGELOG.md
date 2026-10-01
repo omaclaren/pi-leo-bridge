@@ -4,6 +4,14 @@ All notable changes to this project will be documented here. The format is based
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the pinned Pi SDK dependencies to 0.99.2, including official OpenAI Sign in with ChatGPT subscription authentication under the `openai` provider.
+
+### Fixed
+
+- Restored incoming conversation history through Pi's in-memory session manager, as required by the current SDK. Added SDK-level regression tests for multimodal history, tool-free isolation, and independent request sessions.
+
 ## [0.1.2] - 2026-09-03
 
 ### Added

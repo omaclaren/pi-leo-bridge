@@ -78,6 +78,18 @@ pi-leo models
 pi-leo models openai-codex
 ```
 
+For OpenAI's official **Sign in with ChatGPT**, run `/login openai` in Pi and choose that login method. The bridge can use the stored subscription OAuth credential without an API key:
+
+```bash
+pi-leo configure \
+  --provider openai \
+  --model gpt-6.1-sol \
+  --name "GPT-6.1 Sol" \
+  --yes
+```
+
+The legacy `openai-codex` subscription login remains supported. `openai` also supports API keys, so the provider name alone does not establish billing; check the selected authentication method. Subscription limits and any credit usage remain subject to OpenAI's terms.
+
 If validation reports missing or expired authentication, open Pi, sign in to that provider again, and rerun `pi-leo install` or `pi-leo configure`. Model and authentication validation happens before the installer changes Brave.
 
 On a fresh installation, the installer uses Brave's most recently used profile. Select another channel or profile explicitly when needed:

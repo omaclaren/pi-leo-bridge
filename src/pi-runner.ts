@@ -1,4 +1,3 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, ImageContent, Model, Usage, UserMessage } from "@earendil-works/pi-ai";
 import {
   createAgentSession,
@@ -103,7 +102,7 @@ function toAssistantMessage(turn: NormalizedTurn, model: Model<any>, timestamp: 
   };
 }
 
-function toHistoryMessages(turns: NormalizedTurn[], model: Model<any>): AgentMessage[] {
+function toHistoryMessages(turns: NormalizedTurn[], model: Model<any>): (UserMessage | AssistantMessage)[] {
   const start = Date.now() - turns.length - 1;
   return turns.map((turn, index) =>
     turn.role === "user"
@@ -181,6 +180,11 @@ export class PiCompletionRunner implements CompletionRunner {
       retry: { enabled: true, maxRetries: 1 },
     });
     const resourceLoader = createResourceLoader(conversation.systemInstructions);
+    // Pi rebuilds finalized context from SessionManager, not agent.state.messages.
+    const sessionManager = SessionManager.inMemory(this.config.workspace);
+    for (const message of toHistoryMessages(conversation.history, requestModel)) {
+      sessionManager.appendMessage(message);
+    }
     const { session } = await createAgentSession({
       cwd: this.config.workspace,
       agentDir: this.config.agentDir,
@@ -189,7 +193,7 @@ export class PiCompletionRunner implements CompletionRunner {
       thinkingLevel: profile.thinkingLevel,
       noTools: "all",
       resourceLoader,
-      sessionManager: SessionManager.inMemory(this.config.workspace),
+      sessionManager,
       settingsManager,
     });
 
@@ -197,9 +201,6 @@ export class PiCompletionRunner implements CompletionRunner {
       session.dispose();
       throw new Error("Isolation check failed: the Pi session unexpectedly has tools enabled");
     }
-
-    const history = toHistoryMessages(conversation.history, requestModel);
-    session.agent.state.messages = history;
 
     let streamedText = "";
     const outputFilter = new StreamingOutputFilter(
