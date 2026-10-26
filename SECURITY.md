@@ -12,6 +12,12 @@ Leo-facing Pi sessions intentionally have no tools, extensions, skills, project 
 
 The capability URL is stored in the selected Brave profile's local Preferences file. Anyone able to read files as the same macOS user should be considered inside the local trust boundary. The public health route reports only availability; configuration details require the same capability. Installation also verifies that the listening process belongs to the installed LaunchAgent before accepting its health response.
 
+## Dependency advisories
+
+Pi SDK 1.4.0 resolves the previously reported `brace-expansion` advisories. The [historical source trace and reachability assessment](docs/brace-expansion-assessment.md) covers the earlier 0.99.2 dependency, not the new SDK.
+
+Pi 1.4.0 pins `undici` 8.10.2, which is affected by [GHSA-xjj6-f33q-929c](https://github.com/advisories/GHSA-xjj6-f33q-929c), [GHSA-4qv8-2p9j-2685](https://github.com/advisories/GHSA-4qv8-2p9j-2685), and [GHSA-f72v-6w45-q472](https://github.com/advisories/GHSA-f72v-6w45-q472). An isolated clean install reports a high-severity audit finding. We have not established whether the affected behavior is reachable through the bridge. A development-only npm override does not reliably protect consumers of the published package; the bridge does not use one. Track upstream remediation before release and recheck the installed artifact.
+
 ## Data flow
 
 The HTTP hop from Brave to the bridge stays on the local machine. Prompts, attached page content, and images are then sent by Pi to the configured model provider. Provider policies, retention, subscription limits, and charges still apply. Brave's hosted-model proxy protections do not apply to BYOM endpoints.

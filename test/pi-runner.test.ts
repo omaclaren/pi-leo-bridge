@@ -135,6 +135,45 @@ test("Pi SDK receives restored multimodal history and a tool-free isolated promp
   assert.deepEqual(await readdir(workspace), ["AGENTS.md"]);
 });
 
+test("reported brace-expansion payloads remain literal data in the tool-free SDK", async (t) => {
+  const { runner, requests } = await fakeRunner(t);
+  // The public advisories describe parser-side failures, not large expansion sets.
+  const payloads = [
+    "{".repeat(3200) + "a,b" + "}".repeat(3200),
+    "{a,".repeat(4000) + "z" + "}".repeat(4000),
+    "{" + "{a},".repeat(7000) + "b}",
+    "{a}" + "}".repeat(16000) + ",z}",
+  ];
+  for (const payload of payloads) {
+    const conversation = normalizeChatRequest({
+      model: "pi-test",
+      stop: "*{literal,stop}",
+      messages: [
+        { role: "system", content: payload },
+        { role: "developer", content: payload },
+        { role: "user", content: payload },
+        { role: "assistant", content: payload },
+        { role: "user", content: payload },
+        { role: "assistant", content: payload },
+      ],
+    });
+    const result = await runner.complete(conversation, () => {}, new AbortController().signal);
+    assert.equal(result.text, "Bridge reply");
+    const context = requests.at(-1)!.context;
+    const messages = context.messages.filter((message) => message.role !== "system");
+    const text = (content: typeof messages[number]["content"]) => typeof content === "string"
+      ? content
+      : content.filter((part) => part.type === "text").map((part) => part.text).join("");
+    assert.equal(messages.length, 3);
+    assert.equal(text(messages[0]!.content), payload);
+    assert.equal(text(messages[1]!.content), payload);
+    assert.equal(text(messages[2]!.content), conversation.prompt.text);
+    assert.ok(getCurrentSystemPrompt(context.messages).includes(payload));
+    assert.deepEqual(getCurrentTools(context.messages), []);
+  }
+  assert.equal(requests.length, payloads.length);
+});
+
 test("each Pi completion has fresh in-memory history and a distinct session ID", async (t) => {
   const { runner, requests } = await fakeRunner(t);
   for (const text of ["First private conversation", "Separate conversation"]) {

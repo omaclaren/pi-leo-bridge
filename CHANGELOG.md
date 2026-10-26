@@ -6,7 +6,11 @@ All notable changes to this project will be documented here. The format is based
 
 ### Changed
 
-- Updated the pinned Pi SDK dependencies to 0.99.2, including official OpenAI Sign in with ChatGPT subscription authentication under the `openai` provider.
+- Updated the pinned Pi SDK dependencies to 1.4.0, including official OpenAI Sign in with ChatGPT subscription authentication under the `openai` provider. This resolves the previously reported `brace-expansion` dependency advisories, but Pi 1.4.0 has a separate `undici` audit finding; see `SECURITY.md`.
+
+### Added
+
+- A historical scoped reachability assessment for Pi 0.99.2's upstream `brace-expansion` advisory and a regression test for advisory-shaped conversation data.
 
 ### Fixed
 
